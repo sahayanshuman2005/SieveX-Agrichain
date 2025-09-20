@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agrichain - Supply Chain Transparency</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.4/web3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected { background-color: #4CAF50; }
+        .status-disconnected { background-color: #f44336; }
+
+        .batch-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .batch-item:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .batch-id {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #667eea;
+        }
+
+        .batch-stage {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            color: white;
+        }
+
+        .stage-harvested { background-color: #28a745; }
+        .stage-processed { background-color: #17a2b8; }
+        .stage-intransit { background-color: #ffc107; color: #212529; }
+        .stage-delivered { background-color: #6f42c1; }
+        .stage-sold { background-color: #6c757d; }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .timeline {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-left: 40px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: #ddd;
+        }
+
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+        }
+
+        .qr-code-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-code {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+            display: inline-block;
+        }
+
+        .env-records {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .env-record {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Agrichain</h1>
+            <p>Blockchain-based Agricultural Supply Chain Transparency</p>
+            <div id="connectionStatus" class="status-indicator status-disconnected"></div>
+            <span id="connectionText">Disconnected</span>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <!-- Registration Card -->
+            <div class="card">
+                <h3>👤 Participant Registration</h3>
+                <form id="registrationForm">
+                    <div class="form-group">
+                        <label for="participantName">Name:</label>
+                        <input type="text" id="participantName" required placeholder="Enter your name or company">
+                    </div>
+                    <div class="form-group">
+                        <label for="participantLocation">Location:</label>
+                        <input type="text" id="participantLocation" required placeholder="City, State/Province">
+                    </div>
+                    <div class="form-group">
+                        <label for="participantRole">Role:</label>
+                        <select id="participantRole" required>
+                            <option value="">Select Role</option>
+                            <option value="0">Farmer</option>
+                            <option value="1">Supplier</option>
+                            <option value="2">Distributor</option>
+                            <option value="3">Retailer</option>
+                        </select>
+                    </div>
+                    <button type="submit">Register Participant</button>
+                </form>
+            </div>
+
+            <!-- Product Creation Card -->
+            <div class="card">
+                <h3>🌾 Create Product</h3>
+                <form id="productForm">
+                    <div class="form-group">
+                        <label for="productName">Product Name:</label>
+                        <input type="text" id="productName" required placeholder="e.g., Organic Tomatoes">
+                    </div>
+                    <div class="form-group">
+                        <label for="productVariety">Variety:</label>
+                        <input type="text" id="productVariety" required placeholder="e.g., Roma, Cherry">
+                    </div>
+                    <div class="form-group">
+                        <label for="productQuantity">Quantity (kg):</label>
+                        <input type="number" id="productQuantity" required min="1" placeholder="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="harvestDate">Harvest Date:</label>
+                        <input type="date" id="harvestDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="isOrganic" style="width: auto; margin-right: 8px;"> 
+                            Organic Product
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="certifications">Certifications:</label>
+                        <input type="text" id="certifications" placeholder="e.g., USDA Organic, Fair Trade (comma separated)">
+                    </div>
+                    <button type="submit">Create Product</button>
+                </form>
+            </div>
+
+            <!-- Batch Management Card -->
+            <div class="card">
+                <h3>📦 Batch Management</h3>
+                <div style="margin-bottom: 20px;">
+                    <h4>Create New Batch</h4>
+                    <div class="form-group">
+                        <label for="batchProductId">Product ID:</label>
+                        <input type="number" id="batchProductId" placeholder="Enter Product ID" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="batchLocation">Initial Location:</label>
+                        <input type="text" id="batchLocation" placeholder="e.g., Farm Warehouse A">
+                    </div>
+                    <button onclick="createBatch()">Create Batch</button>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="scanQRCode()">📱 Scan QR Code</button>
+                    <button onclick="loadBatches()">🔄 Refresh Batches</button>
+                </div>
+                
+                <div id="batchesList">
+                    <p>Loading batches...</p>
+                </div>
+            </div>
+
+            <!-- QR Code Tracking -->
+            <div class="card">
+                <h3>🔍 Track by QR Code</h3>
+                <div class="form-group">
+                    <label for="qrTrackInput">QR Code or Batch ID:</label>
+                    <input type="text" id="qrTrackInput" placeholder="Enter QR code or batch ID">
+                </div>
+                <button onclick="trackByQR()">Track Batch</button>
+                <button onclick="generateQRDemo()">Generate Demo QR</button>
+            </div>
+        </div>
+
+        <!-- Environmental Data Recording -->
+        <div class="card">
+            <h3>🌡️ Environmental Data Recording</h3>
+            <form id="environmentForm">
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="envBatchId">Batch ID:</label>
+                        <input type="number" id="envBatchId" required min="1" placeholder="Enter batch ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="envLocation">Current Location:</label>
+                        <input type="text" id="envLocation" required placeholder="e.g., Cold Storage B">
+                    </div>
+                    <div class="form-group">
+                        <label for="envTemperature">Temperature (°C):</label>
+                        <input type="number" id="envTemperature" step="0.1" required placeholder="4.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="envHumidity">Humidity (%):</label>
+                        <input type="number" id="envHumidity" min="0" max="100" required placeholder="65">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="envNotes">Notes:</label>
+                    <textarea id="envNotes" rows="3" placeholder="Additional observations or notes..."></textarea>
+                </div>
+                <button type="submit">Record Environmental Data</button>
+            </form>
+        </div>
+
+        <!-- Ownership Transfer -->
+        <div class="card">
+            <h3>🔄 Transfer Ownership</h3>
+            <form id="transferForm">
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="transferBatchId">Batch ID:</label>
+                        <input type="number" id="transferBatchId" required min="1" placeholder="Enter batch ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="transferNewOwner">New Owner Address:</label>
+                        <input type="text" id="transferNewOwner" required placeholder="0x...">
+                    </div>
+                    <div class="form-group">
+                        <label for="transferStage">New Stage:</label>
+                        <select id="transferStage" required>
+                            <option value="">Select Stage</option>
+                            <option value="1">Processed</option>
+                            <option value="2">In Transit</option>
+                            <option value="3">Delivered</option>
+                            <option value="4">Sold</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transferLocation">New Location:</label>
+                        <input type="text" id="transferLocation" required placeholder="e.g., Distribution Center">
+                    </div>
+                </div>
+                <button type="submit">Transfer Ownership</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Details Modal -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBatchModal()">&times;</span>
+            <div id="batchDetails">
+                <!-- Batch details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Scanner Modal -->
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeQRModal()">&times;</span>
+            <h3>QR Code Scanner</h3>
+            <div style="text-align: center; margin: 20px 0;">
+                <input type="text" id="qrCodeInput" placeholder="Enter QR Code or Batch ID" style="width: 300px;">
+                <br><br>
+                <button onclick="trackByQRModal()">Track Batch</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let web3;
+        let contract;
+        let userAccount;
+
+        // Contract configuration
+        const CONTRACT_ADDRESS = '0x1234567890123456789012345678901234567890'; // Replace with actual address
+        const CONTRACT_ABI = [
+            // Simplified ABI - include your actual contract ABI here
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_name", "type": "string"},
+                    {"internalType": "string", "name": "_location", "type": "string"},
+                    {"internalType": "uint8", "name": "_role", "type": "uint8"}
+                ],
+                "name": "registerParticipant",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_productName", "type": "string"},
+                    {"internalType": "string", "name": "_variety", "type": "string"},
+                    {"internalType": "uint256", "name": "_quantity", "type": "uint256"},
+                    {"internalType": "string", "name": "_harvestDate", "type": "string"},
+                    {"internalType": "bool", "name": "_isOrganic", "type": "bool"},
+                    {"internalType": "string[]", "name": "_certifications", "type": "string[]"}
+                ],
+                "name": "createProduct",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "_productId", "type": "uint256"},
+                    {"internalType": "string", "name": "_qrCode", "type": "string"},
+                    {"internalType": "string", "name": "_initialLocation", "type": "string"}
+                ],
+                "name": "createBatch",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "_batchId", "type": "uint256"},
+                    {"internalType": "int256", "name": "_temperature", "type": "int256"},
+                    {"internalType": "uint256", "name": "_humidity", "type": "uint256"},
+                    {"internalType": "string", "name": "_location", "type": "string"},
+                    {"internalType": "string", "name": "_notes", "type": "string"}
+                ],
+                "name": "recordEnvironmentData",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "_batchId", "type": "uint256"},
+                    {"internalType": "address", "name": "_newOwner", "type": "address"},
+                    {"internalType": "uint8", "name": "_newStage", "type": "uint8"},
+                    {"internalType": "string", "name": "_newLocation", "type": "string"}
+                ],
+                "name": "transferOwnership",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "string", "name": "_qrCode", "type": "string"}],
+                "name": "getBatchByQR",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256", "name": "_batchId", "type": "uint256"}],
+                "name": "getBatchDetails",
+                "outputs": [
+                    {"internalType": "uint256", "name": "batchId", "type": "uint256"},
+                    {"internalType": "uint256", "name": "productId", "type": "uint256"},
+                    {"internalType": "uint8", "name": "currentStage", "type": "uint8"},
+                    {"internalType": "address", "name": "currentOwner", "type": "address"},
+                    {"internalType": "string", "name": "location", "type": "string"},
+                    {"internalType": "string", "name": "notes", "type": "string"},
+                    {"internalType": "uint256", "name": "environmentRecordCount", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256", "name": "_productId", "type": "uint256"}],
+                "name": "getProductInfo",
+                "outputs": [
+                    {"internalType": "string", "name": "name", "type": "string"},
+                    {"internalType": "string", "name": "variety", "type": "string"},
+                    {"internalType": "uint256", "name": "quantity", "type": "uint256"},
+                    {"internalType": "address", "name": "farmer", "type": "address"},
+                    {"internalType": "uint8", "name": "quality", "type": "uint8"},
+                    {"internalType": "bool", "name": "isOrganic", "type": "bool"},
+                    {"internalType": "string[]", "name": "certifications", "type": "string[]"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256", "name": "_batchId", "type": "uint256"}],
+                "name": "getBatchHistory",
+                "outputs": [
+                    {"internalType": "address[]", "name": "owners", "type": "address[]"},
+                    {"internalType": "string[]", "name": "locations", "type": "string[]"},
+                    {"internalType": "uint256[]", "name": "timestamps", "type": "uint256[]"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "_batchId", "type": "uint256"},
+                    {"internalType": "uint256", "name": "_index", "type": "uint256"}
+                ],
+                "name": "getEnvironmentData",
+                "outputs": [
+                    {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+                    {"internalType": "int256", "name": "temperature", "type": "int256"},
+                    {"internalType": "uint256", "name": "humidity", "type": "uint256"},
+                    {"internalType": "string", "name": "location", "type": "string"},
+                    {"internalType": "address", "name": "recorder", "type": "address"},
+                    {"internalType": "string", "name": "notes", "type": "string"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        // Initialize the application
+        async function init() {
+            try {
+                // Check if MetaMask is available
+                if (typeof window.ethereum !== 'undefined') {
+                    web3 = new Web3(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    userAccount = accounts[0];
+                    
+                    // Initialize contract
+                    contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                    
+                    updateConnectionStatus(true);
+                    showAlert('Connected to blockchain successfully!', 'success');
+                    
+                    // Load initial data
+                    loadBatches();
+                    
+                } else {
+                    throw new Error('MetaMask not detected');
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                updateConnectionStatus(false);
+                showAlert('Failed to connect to blockchain. Please install MetaMask.', 'danger');
+            }
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(connected) {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusIndicator.className = 'status-indicator status-connected';
+                statusText.textContent = `Connected (${userAccount?.slice(0, 8)}...)`;
+            } else {
+                statusIndicator.className = 'status-indicator status-disconnected';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        // Show alerts
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = message;
+            
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+
+        // Participant registration
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('participantName').value;
+            const location = document.getElementById('participantLocation').value;
+            const role = document.getElementById('participantRole').value;
+            
+            try {
+                showAlert('Registering participant...', 'info');
+                
+                const result = await contract.methods.registerParticipant(name, location, role)
+                    .send({ from: userAccount });
+                
+                showAlert(`Participant registered successfully! TX: ${result.transactionHash}`, 'success');
+                document.getElementById('registrationForm').reset();
+                
+            } catch (error) {
+                console.error('Registration error:', error);
+                showAlert('Registration failed: ' + error.message, 'danger');
+            }
+        });
+
+        // Product creation
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const productName = document.getElementById('productName').value;
+            const variety = document.getElementById('productVariety').value;
+            const quantity = document.getElementById('productQuantity').value;
+            const harvestDate = document.getElementById('harvestDate').value;
+            const isOrganic = document.getElementById('isOrganic').checked;
+            const certifications = document.getElementById('certifications').value
+                .split(',').map(cert => cert.trim()).filter(cert => cert.length > 0);
+            
+            try {
+                showAlert('Creating product...', 'info');
+                
+                const result = await contract.methods.createProduct(
+                    productName, variety, quantity, harvestDate, isOrganic, certifications
+                ).send({ from: userAccount });
+                
+                // Extract product ID from event logs
+                const productId = result.events?.ProductCreated?.returnValues?.productId || 'Unknown';
+                
+                showAlert(`Product created successfully! Product ID: ${productId}`, 'success');
+                document.getElementById('productForm').reset();
+                
+            } catch (error) {
+                console.error('Product creation error:', error);
+                showAlert('Product creation failed: ' + error.message, 'danger');
+            }
+        });
+
+        // Environmental data recording
+        document.getElementById('environmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const batchId = document.getElementById('envBatchId').value;
+            const temperature = document.getElementById('envTemperature').value;
+            const humidity = document.getElementById('envHumidity').value;
+            const location = document.getElementById('envLocation').value;
+            const notes = document.getElementById('envNotes').value;
+            
+            try {
+                showAlert('Recording environmental data...', 'info');
+                
+                // Convert temperature to int (multiply by 100 for decimals)
+                const tempInt = Math.round(parseFloat(temperature) * 100);
+                const humidityInt = Math.round(parseFloat(humidity) * 100);
+                
+                const result = await contract.methods.recordEnvironmentData(
+                    batchId, tempInt, humidityInt, location, notes
+                ).send({ from: userAccount });
+                
+                showAlert(`Environmental data recorded successfully! TX: ${result.transactionHash}`, 'success');
+                document.getElementById('environmentForm').reset();
+                
+            } catch (error) {
+                console.error('Environment recording error:', error);
+                showAlert('Environment recording failed: ' + error.message, 'danger');
+            }
+        });
+
+        // Ownership transfer
+        document.getElementById('transferForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const batchId = document.getElementById('transferBatchId').value;
+            const newOwner = document.getElementById('transferNewOwner').value;
+            const newStage = document.getElementById('transferStage').value;
+            const newLocation = document.getElementById('transferLocation').value;
+            
+            try {
+                showAlert('Transferring ownership...', 'info');
+                
+                const result = await contract.methods.transferOwnership(
+                    batchId, newOwner, newStage, newLocation
+                ).send({ from: userAccount });
+                
+                showAlert(`Ownership transferred successfully! TX: ${result.transactionHash}`, 'success');
+                document.getElementById('transferForm').reset();
+                loadBatches(); // Refresh batch list
+                
+            } catch (error) {
+                console.error('Transfer error:', error);
+                showAlert('Ownership transfer failed: ' + error.message, 'danger');
+            }
+        });
+
+        // Create batch function
+        async function createBatch() {
+            const productId = document.getElementById('batchProductId').value;
+            const location = document.getElementById('batchLocation').value;
+            
+            if (!productId || !location) {
+                showAlert('Please fill in all batch creation fields', 'warning');
+                return;
+            }
+            
+            try {
+                // Generate QR code
+                const qrCode = 'QR_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                
+                showAlert('Creating batch...', 'info');
+                
+                const result = await contract.methods.createBatch(productId, qrCode, location)
+                    .send({ from: userAccount });
+                
+                // Extract batch ID from event logs
+                const batchId = result.events?.BatchCreated?.returnValues?.batchId || 'Unknown';
+                
+                showAlert(`Batch created successfully! Batch ID: ${batchId}, QR Code: ${qrCode}`, 'success');
+                
+                // Clear form
+                document.getElementById('batchProductId').value = '';
+                document.getElementById('batchLocation').value = '';
+                
+                loadBatches();
+                
+            } catch (error) {
+                console.error('Batch creation error:', error);
+                showAlert('Batch creation failed: ' + error.message, 'danger');
+            }
+        }
+
+        // Load batches (simulated for demo)
+        function loadBatches() {
+            const batchesList = document.getElementById('batchesList');
+            
+            // For demo purposes, show simulated batches
+            // In production, you'd query the blockchain for actual batches
+            const sampleBatches = [
+                {
+                    id: 1,
+                    productName: 'Organic Tomatoes',
+                    stage: 'harvested',
+                    location: 'Green Valley Farm',
+                    owner: formatAddress(userAccount || '0x123...'),
+                    lastUpdate: new Date().toLocaleString()
+                },
+                {
+                    id: 2,
+                    productName: 'Fresh Lettuce',
+                    stage: 'intransit',
+                    location: 'Distribution Center A',
+                    owner: formatAddress('0xabc...'),
+                    lastUpdate: new Date(Date.now() - 3600000).toLocaleString()
+                },
+                {
+                    id: 3,
+                    productName: 'Bell Peppers',
+                    stage: 'delivered',
+                    location: 'Retail Store B',
+                    owner: formatAddress('0xdef...'),
+                    lastUpdate: new Date(Date.now() - 7200000).toLocaleString()
+                }
+            ];
+            
+            batchesList.innerHTML = sampleBatches.map(batch => `
+                <div class="batch-item" onclick="showBatchDetails(${batch.id})">
+                    <div class="batch-header">
+                        <span class="batch-id">Batch #${batch.id}</span>
+                        <span class="batch-stage stage-${batch.stage}">${batch.stage.toUpperCase()}</span>
+                    </div>
+                    <p><strong>${batch.productName}</strong></p>
+                    <p>📍 ${batch.location}</p>
+                    <p>👤 Owner: ${batch.owner}</p>
+                    <p>🕒 ${batch.lastUpdate}</p>
+                </div>
+            `).join('');
+        }
+
+        // Show batch details in modal
+        async function showBatchDetails(batchId) {
+            const modal = document.getElementById('batchModal');
+            const detailsDiv = document.getElementById('batchDetails');
+            
+            try {
+                showAlert('Loading batch details...', 'info');
+                
+                if (contract) {
+                    // Try to get real data from blockchain
+                    try {
+                        const batchDetails = await contract.methods.getBatchDetails(batchId).call();
+                        const productInfo = await contract.methods.getProductInfo(batchDetails.productId).call();
+                        const history = await contract.methods.getBatchHistory(batchId).call();
+                        
+                        detailsDiv.innerHTML = `
+                            <h2>Batch #${batchId} Details</h2>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h3>Product Information</h3>
+                                <p><strong>Name:</strong> ${productInfo.name}</p>
+                                <p><strong>Variety:</strong> ${productInfo.variety}</p>
+                                <p><strong>Quantity:</strong> ${productInfo.quantity} kg</p>
+                                <p><strong>Organic:</strong> ${productInfo.isOrganic ? 'Yes' : 'No'}</p>
+                                <p><strong>Quality:</strong> ${getQualityString(productInfo.quality)}</p>
+                                <p><strong>Farmer:</strong> ${formatAddress(productInfo.farmer)}</p>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h3>Current Status</h3>
+                                <p><strong>Stage:</strong> ${getStageString(batchDetails.currentStage)}</p>
+                                <p><strong>Owner:</strong> ${formatAddress(batchDetails.currentOwner)}</p>
+                                <p><strong>Location:</strong> ${batchDetails.location}</p>
+                                <p><strong>Environment Records:</strong> ${batchDetails.environmentRecordCount}</p>
+                            </div>
+                            
+                            <div class="timeline">
+                                <h3>History</h3>
+                                ${history.owners.map((owner, index) => `
+                                    <div class="timeline-item">
+                                        <h4>${getStageString(index)}</h4>
+                                        <p>Owner: ${formatAddress(owner)}</p>
+                                        <p>Location: ${history.locations[index]}</p>
+                                        <p>Time: ${new Date(history.timestamps[index] * 1000).toLocaleString()}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            <div class="qr-code-container">
+                                <canvas id="qrCodeDisplay" width="150" height="150"></canvas>
+                                <p>QR Code: QR_${batchId}_${Date.now().toString().slice(-6)}</p>
+                            </div>
+                        `;
+                        
+                        // Generate QR code
+                        setTimeout(() => {
+                            QRCode.toCanvas(document.getElementById('qrCodeDisplay'), `BATCH_${batchId}`, function (error) {
+                                if (error) console.error(error);
+                            });
+                        }, 100);
+                        
+                    } catch (contractError) {
+                        // Fallback to simulated data
+                        showSimulatedBatchDetails(batchId, detailsDiv);
+                    }
+                } else {
+                    // Show simulated data when contract not available
+                    showSimulatedBatchDetails(batchId, detailsDiv);
+                }
+                
+                modal.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading batch details:', error);
+                showAlert('Error loading batch details: ' + error.message, 'danger');
+            }
+        }
+
+        function showSimulatedBatchDetails(batchId, detailsDiv) {
+            detailsDiv.innerHTML = `
+                <h2>Batch #${batchId} Details</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3>Product Information</h3>
+                    <p><strong>Name:</strong> Organic Tomatoes</p>
+                    <p><strong>Variety:</strong> Roma</p>
+                    <p><strong>Quantity:</strong> 1000 kg</p>
+                    <p><strong>Organic:</strong> Yes</p>
+                    <p><strong>Quality:</strong> Excellent</p>
+                    <p><strong>Farmer:</strong> ${formatAddress('0x1234...')}</p>
+                </div>
+                
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>🌱 Harvested</h4>
+                        <p>Farm: Green Valley Organic Farm</p>
+                        <p>Date: ${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleString()}</p>
+                        <p>Quality: Excellent</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>🏭 Processed</h4>
+                        <p>Facility: FreshPack Processing Center</p>
+                        <p>Date: ${new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toLocaleString()}</p>
+                        <p>Operations: Cleaned, Sorted, Packaged</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>🚛 In Transit</h4>
+                        <p>Vehicle: Refrigerated Truck RT-001</p>
+                        <p>Date: ${new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleString()}</p>
+                        <p>Route: Processing → Distribution</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3>Environmental Records</h3>
+                    <div class="env-records">
+                        <div class="env-record">
+                            <strong>Temperature: 4.2°C, Humidity: 62%</strong><br>
+                            Location: Cold Storage<br>
+                            Time: ${new Date(Date.now() - 60000).toLocaleString()}<br>
+                            Notes: Regular monitoring check
+                        </div>
+                        <div class="env-record">
+                            <strong>Temperature: 3.8°C, Humidity: 65%</strong><br>
+                            Location: Transport Vehicle<br>
+                            Time: ${new Date(Date.now() - 3600000).toLocaleString()}<br>
+                            Notes: In transit to distribution center
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="qr-code-container">
+                    <canvas id="qrCodeDisplay" width="150" height="150"></canvas>
+                    <p>QR Code: QR_${batchId}_${Date.now().toString().slice(-6)}</p>
+                </div>
+            `;
+            
+            // Generate QR code
+            setTimeout(() => {
+                QRCode.toCanvas(document.getElementById('qrCodeDisplay'), `BATCH_${batchId}`, function (error) {
+                    if (error) console.error(error);
+                });
+            }, 100);
+        }
+
+        // Track by QR code
+        function trackByQR() {
+            const qrCode = document.getElementById('qrTrackInput').value;
+            if (qrCode) {
+                // Extract batch ID from QR code or use directly
+                const batchId = qrCode.includes('BATCH_') ? qrCode.split('_')[1] : qrCode;
+                
+                showBatchDetails(batchId);
+                showAlert(`Tracking batch #${batchId} via QR code`, 'success');
+            } else {
+                showAlert('Please enter a QR code or batch ID', 'warning');
+            }
+        }
+
+        function trackByQRModal() {
+            const qrCode = document.getElementById('qrCodeInput').value;
+            if (qrCode) {
+                const batchId = qrCode.includes('BATCH_') ? qrCode.split('_')[1] : qrCode;
+                
+                closeQRModal();
+                showBatchDetails(batchId);
+                showAlert(`Tracking batch #${batchId} via QR code`, 'success');
+            } else {
+                showAlert('Please enter a QR code or batch ID', 'warning');
+            }
+        }
+
+        function generateQRDemo() {
+            const demoQR = 'QR_DEMO_' + Date.now().toString().slice(-6);
+            document.getElementById('qrTrackInput').value = demoQR;
+            showAlert(`Demo QR code generated: ${demoQR}`, 'success');
+        }
+
+        // Modal functions
+        function closeBatchModal() {
+            document.getElementById('batchModal').style.display = 'none';
+        }
+
+        function scanQRCode() {
+            document.getElementById('qrModal').style.display = 'block';
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const batchModal = document.getElementById('batchModal');
+            const qrModal = document.getElementById('qrModal');
+            
+            if (event.target == batchModal) {
+                batchModal.style.display = 'none';
+            }
+            if (event.target == qrModal) {
+                qrModal.style.display = 'none';
+            }
+        }
+
+        // Utility functions
+        function formatAddress(address) {
+            return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+        }
+
+        function getStageString(stage) {
+            const stages = ['Harvested', 'Processed', 'In Transit', 'Delivered', 'Sold'];
+            return stages[stage] || 'Unknown';
+        }
+
+        function getQualityString(quality) {
+            const qualities = ['Excellent', 'Good', 'Fair', 'Poor'];
+            return qualities[quality] || 'Unknown';
+        }
+
+        // Initialize app when page loads
+        window.addEventListener('load', function() {
+            init();
+            
+            // Load batches every 30 seconds
+            setInterval(loadBatches, 30000);
+        });
+
+        // Handle account changes
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length === 0) {
+                    updateConnectionStatus(false);
+                    showAlert('Please connect to MetaMask', 'warning');
+                } else {
+                    userAccount = accounts[0];
+                    updateConnectionStatus(true);
+                    showAlert('Account changed successfully', 'success');
+                }
+            });
+
+            window.ethereum.on('chainChanged', function (chainId) {
+                window.location.reload();
+            });
+        }
+
+        // Export functions for global access
+        window.createBatch = createBatch;
+        window.loadBatches = loadBatches;
+        window.showBatchDetails = showBatchDetails;
+        window.closeBatchModal = closeBatchModal;
+        window.scanQRCode = scanQRCode;
+        window.closeQRModal = closeQRModal;
+        window.trackByQR = trackByQR;
+        window.trackByQRModal = trackByQRModal;
+        window.generateQRDemo = generateQRDemo;
+    </script>
+</body>
+</html>
