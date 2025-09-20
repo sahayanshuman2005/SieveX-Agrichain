@@ -33,12 +33,12 @@ MetaMask browser extension
 Git
 
 ⚡ One-Command Setup
-bashgit clone https://github.com/yourusername/agrichain.git
+bashgit clone https://github.com/sahayanshuman2005/SieveX-Agrichain.git
 cd agrichain
 chmod +x setup.sh && ./setup.sh
 🔧 Manual Setup
 bash# 1. Clone the repository
-git clone https://github.com/yourusername/agrichain.git
+git clone https://github.com/sahayanshuman2005/SieveX-Agrichain.git
 cd agrichain
 
 # 2. Install dependencies
